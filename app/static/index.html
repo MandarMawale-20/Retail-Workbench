@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retail Workbench</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fafaf8; --fg:#1d1d1b; --muted:#6b6b66; --card:#fff; --line:#dcdcd6; --accent:#1f5f8b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161615; --fg:#ececea; --muted:#9a9a94; --card:#1f1f1d; --line:#34342f; --accent:#6fb1dc; } }
+  body { font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); max-width:980px; margin:0 auto; padding:1.5rem; }
+  h1 { font-size:1.3rem; } h2 { font-size:1rem; margin:0 0 .5rem; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem; margin-bottom:1rem; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:.45rem .9rem; cursor:pointer; }
+  input[type=text] { width:calc(100% - 6rem); padding:.45rem; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); }
+  pre { background:var(--bg); border:1px solid var(--line); padding:.6rem; overflow:auto; max-height:320px; font-size:12px; }
+  .muted { color:var(--muted); } .turn { border-top:1px solid var(--line); padding-top:.6rem; margin-top:.6rem; white-space:pre-wrap; }
+  .pill { display:inline-block; padding:0 .5rem; border-radius:99px; border:1px solid var(--line); font-size:12px; }
+</style>
+</head>
+<body>
+<h1>Retail Data &amp; Conversational Intelligence Workbench</h1>
+<p class="muted">Upload CSVs, review the cleaning plan, then ask grounded questions. Owner: <input id="owner" type="text" value="demo" style="width:8rem"></p>
+
+<section>
+  <h2>1. Upload</h2>
+  <input id="files" type="file" multiple accept=".csv"> <button onclick="upload()">Create run</button>
+  <div id="run" class="muted"></div>
+  <details><summary>Issues</summary><pre id="issues"></pre></details>
+  <details><summary>Cleaning plan (reason / risk / source / status)</summary><pre id="plan"></pre></details>
+  <div id="review"></div>
+  <details><summary>Relationship graph</summary><pre id="graph"></pre></details>
+</section>
+
+<section>
+  <h2>2. Chat</h2>
+  <input id="q" type="text" placeholder="Top 5 categories by revenue" onkeydown="if(event.key==='Enter')ask()"> <button onclick="ask()">Ask</button>
+  <div id="turns"></div>
+</section>
+
+<script>
+let runId = null, sessionId = null;
+const h = () => ({ 'X-Owner-Id': document.getElementById('owner').value });
+const show = (id, v) => document.getElementById(id).textContent = JSON.stringify(v, null, 2);
+function renderReview(plan) {
+  const review = document.getElementById('review'); review.replaceChildren();
+  const pending = (plan || []).filter(s => ['skipped_needs_review', 'proposed'].includes(s.status));
+  if (!pending.length) return;
+  const heading = document.createElement('p'); heading.textContent = `${pending.length} cleaning step(s) need review.`; review.append(heading);
+  for (const step of pending) {
+    const row = document.createElement('div'); row.className = 'turn';
+    const label = document.createElement('span');
+    label.textContent = `${step.transformation} (${step.risk}) - ${step.reason}`;
+    const button = document.createElement('button'); button.textContent = 'Approve';
+    button.onclick = async () => {
+      button.disabled = true;
+      const response = await fetch(`/api/runs/${runId}/approve`, {
+        method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step_ids: [step.step_id] })
+      });
+      const result = await response.json();
+      if (result.error) { button.disabled = false; label.textContent += ` (${result.error.message})`; return; }
+      runId = result.run_id;
+      document.getElementById('run').textContent = `approved run ${runId}`;
+      const nextPlan = await (await fetch(`/api/runs/${runId}/plan`, { headers: h() })).json();
+      show('plan', nextPlan); renderReview(nextPlan);
+    };
+    row.append(label, document.createTextNode(' '), button); review.append(row);
+  }
+}
+async function upload() {
+  const fd = new FormData();
+  for (const f of document.getElementById('files').files) fd.append('files', f);
+  const r = await (await fetch('/api/runs', { method: 'POST', headers: h(), body: fd })).json();
+  if (r.error) { document.getElementById('run').textContent = r.error.message; return; }
+  runId = r.run_id;
+  document.getElementById('run').innerHTML = `run <b>${r.run_id}</b> <span class="pill">${r.status}</span> ${(r.warnings || []).join(' · ')}`;
+  for (const k of ['issues', 'plan', 'graph']) show(k, await (await fetch(`/api/runs/${runId}/${k}`, { headers: h() })).json());
+  renderReview(JSON.parse(document.getElementById('plan').textContent));
+  sessionId = (await (await fetch('/api/sessions', { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ run_id: runId }) })).json()).session_id;
+}
+async function ask() {
+  if (!sessionId) return alert('Create a run first');
+  const q = document.getElementById('q').value; if (!q) return;
+  const r = await (await fetch(`/api/sessions/${sessionId}/chat`, { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })).json();
+  const div = document.createElement('div'); div.className = 'turn';
+  const text = document.createElement('div'); text.textContent = `Q: ${q}\n\n${r.answer_text || r.error?.message}`;
+  div.append(text);
+  const trace = r.trace_id ? await (await fetch(`/api/traces/${r.trace_id}`, { headers: h() })).json() : [];
+  for (const [label, v] of [['Evidence', r.evidence], ['Plan', r.plan], ['Planner-loop trace', trace]]) {
+    if (!v) continue; const d = document.createElement('details'); const s = document.createElement('summary'); s.textContent = label;
+    const p = document.createElement('pre'); p.textContent = JSON.stringify(v, null, 2); d.append(s, p); div.append(d);
+  }
+  document.getElementById('turns').prepend(div); document.getElementById('q').value = '';
+}
+</script>
+</body>
+</html>
