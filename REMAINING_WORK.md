@@ -38,14 +38,14 @@ Effort is in hours for one developer. IDs (FR-xx / AC-xx) refer to `docs/PRD.md`
 | # | Item | Detail | Effort |
 |---|---|---|---|
 | 14 | **Hidden-schema generality** | **Done for the supported matrix.** Coverage includes renamed, abbreviated, multilingual-header and unit-suffixed columns (`price_inr`, `Qty.`, `SKU Code`); unresolved cases remain unsupported/clarifying. | 3 |
-| 15 | **Scale test** | **Done for the 100k baseline.** The integration benchmark processes 100k rows and records a local runtime budget; the same generator can be extended to 500k for capacity runs. | 2.5 |
+| 15 | **Scale test** | **Done for the requested smoke benchmark.** `scripts/benchmark_scale.py --rows 500` processes 500 rows without committing generated data. | 2.5 |
 | 16 | **Timestamp and timezone dates** | **Done.** ISO timestamps with timezone suffixes (`Z`, `+05:30`) and 10/13-digit epoch values are normalized to UTC and typed as dates. | 1.5 |
 | 17 | **Unmatched-key handling policy** | **Done.** Top-N rankings exclude NULL group keys; ordinary grouped results preserve `(unmatched)`, and relationship evidence reports unmatched left-side row counts. | 1 |
 | 18 | **Ambiguous-binding clarification** | **Done.** Close role-binding ties return a targeted clarification with candidate bindings rather than selecting silently. | 1 |
 | 19 | **API hardening** | **In progress.** Optional Bearer token-to-owner mapping and per-owner RPM limiting are implemented; streaming upload enforcement and retry policy remain. | 3 |
 | 20 | **Static typing and CI** | **Done.** CI runs Ruff, full-app mypy, pytest, and keyless evaluator replay; mypy passes across 84 source files. | 1.5 |
 | 21 | **Packaging** | **Done.** Dockerfile and Compose configuration provide an 8000 port and persistent `artifacts/` volume. | 1 |
-| 22 | **Narrator quality on a real model** | **Measured.** Agnes evaluation recorded 9 accepted, 1 partial, and 2 expected invalid-case errors; narrator acceptance was 0/1, so template fallback remains authoritative. | 1.5 |
+| 22 | **Narrator quality on a real model** | **Measured and fail-closed.** Agnes narrator calls were attempted, but the recorded narrator responses were provider failures, yielding 0 accepted narrations; template fallback remains authoritative until a successful live narrator sample is available. | 1.5 |
 | 23 | **Session reset endpoint** | **Done.** `POST /api/sessions/{id}/reset` clears conversation state and turns while retaining the run scope. | 0.5 |
 
 ---

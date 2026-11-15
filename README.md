@@ -81,10 +81,10 @@ Per-path chat metrics from `results_agnes.json` and `results_replay_agnes.json` 
 | grounding_rate | 1.0 | 1.0 |
 | clarification precision / recall | 0.2 / 1.0 | 1.0 / 1.0 |
 | correct_refusal_rate | 1.0 | 1.0 |
-| narrator_acceptance_rate | 0.0 (0/1) | n/a |
+| narrator_acceptance_rate | 0.0 (0/1; provider failure) | template fallback |
 | llm_calls / tokens per question | 1.375 / 3,226.2 | 0.2 / 0 |
 
-Evaluator: 12 cases -> 9 ok, 1 partial, and 2 intentionally bad (missing file, malformed case) reported as `error` without aborting. The final replay had 23 cassette hits and 0 misses. The real Agnes narrator was attempted once and rejected by the verifier, so its acceptance rate was 0/1.
+Evaluator: 12 cases -> 10 ok and 2 intentionally bad (missing file, malformed case) reported as expected `error` cases without aborting. The replay has zero cassette misses. The Agnes narrator sample was unavailable because the provider returned a failure; template fallback therefore remains authoritative.
 
 ## Cassettes: what is and isn't real
 Real Agnes recordings are retained in `evaluation_cases/cassettes/agnes`. The root
