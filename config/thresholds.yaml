@@ -1,0 +1,20 @@
+role_verified: 0.8
+role_candidate: 0.5
+role_ambiguity_margin: 0.1
+alias_apply_confidence: 0.92      # alias / fuzzy confidence needed to auto-apply a category mapping
+fuzzy_review_confidence: 0.80     # below apply, above this: skipped_needs_review
+numeric_parse_success: 0.95
+date_like_ratio: 0.90
+mixed_type_ratio: 0.50
+relationship_min_matched_ratio: 0.5
+unique_ratio: 0.999
+key_candidate_ratio: 0.9
+max_distinct_values: 5000
+limits:
+  max_limit: 1000
+  max_joins_per_fact: 3
+  max_datasets: 5
+  max_columns_in_context: 40
+  preview_rows: 20
+  max_question_chars: 500
+  max_filter_values: 50

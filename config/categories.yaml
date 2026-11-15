@@ -1,0 +1,6 @@
+# canonical category -> aliases (compared after lower-casing and stripping non-alphanumerics)
+T-Shirt: [tee, tees, tshirt, tshirts, t shirt, t-shirts, t shirts]
+Electronics: [electronic, elec, electronics items]
+Footwear: [shoes, shoe, footwears]
+Home & Kitchen: [home and kitchen, home kitchen, kitchenware, home&kitchen]
+Groceries: [grocery, food and grocery]

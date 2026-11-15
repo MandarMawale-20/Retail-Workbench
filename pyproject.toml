@@ -1,0 +1,28 @@
+[project]
+name = "retail-workbench"
+version = "0.1.0"
+description = "AI Retail Data & Conversational Intelligence Workbench"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi", "uvicorn[standard]", "pydantic>=2", "pydantic-settings", "duckdb", "pandas", "pyarrow",
+  "charset-normalizer", "rapidfuzz", "pyyaml", "openai", "tenacity", "python-multipart",
+]
+
+[dependency-groups]
+dev = ["pytest", "pytest-cov", "hypothesis", "httpx", "ruff", "mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "B008"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

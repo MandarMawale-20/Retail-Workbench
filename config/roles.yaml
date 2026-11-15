@@ -1,0 +1,91 @@
+# role -> aliases (normalised column names), accepted inferred types, negative tokens, distribution heuristic.
+# qualified_aliases only count when the dataset name contains one of the hint tokens.
+product_id:
+  aliases: [product_id, productid, prod_id, product_code, sku, sku_code, item_id, item_code, product_no, article_id,
+            codigo_producto, code_produit]
+  types: [string, integer]
+  negative_aliases: [parent]
+  distribution: id
+order_id:
+  aliases: [order_id, orderid, order_no, order_number, transaction_id, transaction_no, txn_id, txn_no, trans_id, invoice_no, invoice_id, bill_no, receipt_no]
+  types: [string, integer]
+  distribution: id
+customer_id:
+  aliases: [customer_id, customerid, cust_id, customer_no, client_id, customer_code]
+  types: [string, integer]
+  distribution: id
+store_id:
+  aliases: [store_id, storeid, store_code, outlet_id, branch_id, shop_id, location_id, store_no]
+  types: [string, integer]
+  distribution: id
+quantity:
+  aliases: [quantity, qty, units, units_sold, quantity_sold, qty_sold, order_qty, quantity_ordered, cantidad, quantite]
+  types: [integer, decimal]
+  negative_aliases: [return, returned, stock, hand, reorder, available]
+  distribution: count
+unit_price:
+  aliases: [unit_price, price, unitprice, selling_price, price_per_unit, sale_price, item_price, mrp, precio_unitario,
+            prix_unitaire]
+  types: [integer, decimal]
+  negative_aliases: [cost, return, refund]
+  distribution: money
+line_amount:
+  aliases: [line_amount, line_total, total_amount, amount, sales_amount, revenue, total_price, net_amount, order_total, sales]
+  types: [integer, decimal]
+  negative_aliases: [return, returned, refund, cost]
+  distribution: money
+category:
+  aliases: [category, categories, product_category, category_name, department, dept, product_type, class]
+  types: [string]
+  distribution: low_card
+order_date:
+  aliases: [order_date, date, order_dt, purchase_date, transaction_date, sale_date, invoice_date, ordered_at]
+  types: [date]
+  negative_aliases: [return, refund, ship, delivery, expiry]
+  distribution: date
+inventory_date:
+  aliases: [inventory_date, stock_date, received_date, stocked_on, last_restocked, inventory_recorded_at]
+  types: [date]
+  distribution: date
+return_date:
+  aliases: [return_date, returned_on, return_dt, refund_date]
+  types: [date]
+  distribution: date
+available_stock:
+  aliases: [available_stock, stock, stock_on_hand, on_hand, qty_on_hand, quantity_on_hand, current_stock, stock_qty, units_in_stock, available_qty, inventory]
+  types: [integer, decimal]
+  distribution: count
+reorder_level:
+  aliases: [reorder_level, reorder_point, min_stock, safety_stock, min_level]
+  types: [integer, decimal]
+  distribution: count
+returned_quantity:
+  aliases: [returned_quantity, return_qty, qty_returned, returned_qty, return_quantity, units_returned, quantity_returned]
+  types: [integer, decimal]
+  distribution: count
+return_amount:
+  aliases: [return_amount, refund_amount, refund, returned_amount, refund_value]
+  types: [integer, decimal]
+  distribution: money
+return_status:
+  aliases: [return_status, is_returned, returned, order_status, status, return_flag, refund_status]
+  types: [string, boolean, integer]
+  distribution: status
+region:
+  aliases: [region, zone, area, sales_region, territory]
+  types: [string]
+  distribution: low_card
+store_name:
+  aliases: [store_name, store, outlet_name, branch_name, shop_name, store_location]
+  qualified_aliases: {name: [store, outlet, branch, shop]}
+  types: [string]
+  distribution: low_card
+product_name:
+  aliases: [product_name, item_name, product_title, product]
+  qualified_aliases: {name: [product, item, article, sku]}
+  types: [string]
+  distribution: text
+unit_cost:
+  aliases: [unit_cost, cost, cost_price, cogs, purchase_price]
+  types: [integer, decimal]
+  distribution: money

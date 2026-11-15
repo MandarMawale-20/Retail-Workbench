@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+artifacts/
+evaluation_output*/
+results*.json
+.pytest_cache/
+.ruff_cache/
+.coverage
+*.duckdb

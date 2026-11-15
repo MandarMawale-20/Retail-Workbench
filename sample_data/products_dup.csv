@@ -1,0 +1,12 @@
+product_id,name,category,list_price
+P001,Item 1,T-Shirt,2499
+P002,Item 2,tee ,199
+P003,Item 3,Tee,349
+P004,Item 4,T-Shirt,349
+P005,Item 5,T-Shirt,2499
+P006,Item 6,T-shirt,1299
+P007,Item 7,T-Shirt,199
+P008,Item 8,Tee,199
+P009,Item 9,T-Shirt,349
+P010,Item 10,Tee,1299
+P001,Conflicting row,Footwear,123
