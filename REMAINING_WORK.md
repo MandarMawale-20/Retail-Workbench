@@ -45,7 +45,7 @@ Effort is in hours for one developer. IDs (FR-xx / AC-xx) refer to `docs/PRD.md`
 | 19 | **API hardening** | **In progress.** Optional Bearer token-to-owner mapping and per-owner RPM limiting are implemented; streaming upload enforcement and retry policy remain. | 3 |
 | 20 | **Static typing and CI** | **Done.** CI runs Ruff, full-app mypy, pytest, and keyless evaluator replay; mypy passes across 84 source files. | 1.5 |
 | 21 | **Packaging** | **Done.** Dockerfile and Compose configuration provide an 8000 port and persistent `artifacts/` volume. | 1 |
-| 22 | **Narrator quality on a real model** | **Measured and fail-closed.** Agnes narrator calls were attempted, but the recorded narrator responses were provider failures, yielding 0 accepted narrations; template fallback remains authoritative until a successful live narrator sample is available. | 1.5 |
+| 22 | **Narrator quality on a real model** | **Live smoke verified.** A complete Agnes-backed user flow produced an accepted narrator response (`answer_source=narrator`); template fallback remains authoritative on provider or verifier failure. Broader acceptance measurement remains future work. | 1.5 |
 | 23 | **Session reset endpoint** | **Done.** `POST /api/sessions/{id}/reset` clears conversation state and turns while retaining the run scope. | 0.5 |
 
 ---

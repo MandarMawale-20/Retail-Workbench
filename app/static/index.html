@@ -5,46 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Retail Workbench</title>
 <style>
-  :root { color-scheme: light dark; --bg:#fafaf8; --fg:#1d1d1b; --muted:#6b6b66; --card:#fff; --line:#dcdcd6; --accent:#1f5f8b; }
+  :root { color-scheme: light dark; --bg:#f4f7fb; --fg:#17202a; --muted:#667085; --card:#fff; --line:#d9e2ec; --accent:#1769aa; --accent-2:#e8f1fb; --danger:#b42318; --success:#067647; }
   @media (prefers-color-scheme: dark) { :root { --bg:#161615; --fg:#ececea; --muted:#9a9a94; --card:#1f1f1d; --line:#34342f; --accent:#6fb1dc; } }
-  body { font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); max-width:980px; margin:0 auto; padding:1.5rem; }
-  h1 { font-size:1.3rem; } h2 { font-size:1rem; margin:0 0 .5rem; }
-  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem; margin-bottom:1rem; }
-  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:.45rem .9rem; cursor:pointer; }
-  input[type=text] { width:calc(100% - 6rem); padding:.45rem; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); }
+  body { font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); max-width:1080px; margin:0 auto; padding:1.5rem; }
+  header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1rem; }
+  h1 { font-size:1.5rem; margin:.2rem 0; } h2 { font-size:1rem; margin:0 0 .5rem; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px #17202a0b; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:7px; padding:.5rem .9rem; cursor:pointer; font-weight:600; }
+  button.secondary { background:var(--accent-2); color:var(--accent); }
+  button:disabled { opacity:.55; cursor:wait; }
+  input[type=text] { width:calc(100% - 6rem); padding:.55rem; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--fg); }
   pre { background:var(--bg); border:1px solid var(--line); padding:.6rem; overflow:auto; max-height:320px; font-size:12px; }
-  .muted { color:var(--muted); } .turn { border-top:1px solid var(--line); padding-top:.6rem; margin-top:.6rem; white-space:pre-wrap; }
+  .muted { color:var(--muted); } .turn { border-top:1px solid var(--line); padding-top:.7rem; margin-top:.7rem; white-space:pre-wrap; }
   .pill { display:inline-block; padding:0 .5rem; border-radius:99px; border:1px solid var(--line); font-size:12px; }
+  .success { color:var(--success); } .error { color:var(--danger); } .toolbar { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .empty { color:var(--muted); padding:.75rem 0; } .clarification { background:var(--accent-2); padding:.75rem; border-radius:8px; margin-top:.5rem; }
 </style>
 </head>
 <body>
-<h1>Retail Data &amp; Conversational Intelligence Workbench</h1>
-<p class="muted">Upload CSVs, review the cleaning plan, then ask grounded questions. Owner: <input id="owner" type="text" value="demo" style="width:8rem"></p>
+<header><div><h1>Retail Intelligence Workbench</h1><p class="muted">Upload, review, and ask grounded retail questions.</p></div><div class="toolbar"><label class="muted">Owner <input id="owner" type="text" value="demo" style="width:8rem"></label><button class="secondary" onclick="resetSession()">Reset session</button></div></header>
 
 <section>
   <h2>1. Upload</h2>
-  <input id="files" type="file" multiple accept=".csv"> <button onclick="upload()">Create run</button>
+  <div class="toolbar"><input id="files" type="file" multiple accept=".csv"> <button id="uploadButton" onclick="upload()">Create run</button></div>
   <div id="run" class="muted"></div>
   <details><summary>Issues</summary><pre id="issues"></pre></details>
   <details><summary>Cleaning plan (reason / risk / source / status)</summary><pre id="plan"></pre></details>
-  <div id="review"></div>
+  <div id="review" class="empty">No run created yet.</div>
   <details><summary>Relationship graph</summary><pre id="graph"></pre></details>
 </section>
 
 <section>
   <h2>2. Chat</h2>
-  <input id="q" type="text" placeholder="Top 5 categories by revenue" onkeydown="if(event.key==='Enter')ask()"> <button onclick="ask()">Ask</button>
-  <div id="turns"></div>
+  <div class="toolbar"><input id="q" type="text" placeholder="Top 5 categories by revenue" onkeydown="if(event.key==='Enter')ask()"><button id="askButton" onclick="ask()">Ask</button></div>
+  <div id="turns" class="empty">Create a run to start a conversation.</div>
 </section>
 
 <script>
 let runId = null, sessionId = null;
 const h = () => ({ 'X-Owner-Id': document.getElementById('owner').value });
 const show = (id, v) => document.getElementById(id).textContent = JSON.stringify(v, null, 2);
+const setBusy = (id, busy, label) => { const b = document.getElementById(id); b.disabled = busy; if (busy) b.dataset.label = b.textContent; b.textContent = busy ? label : (b.dataset.label || b.textContent); };
+const errorText = (r) => r?.error?.message || r?.detail || 'The request could not be completed.';
 function renderReview(plan) {
   const review = document.getElementById('review'); review.replaceChildren();
   const pending = (plan || []).filter(s => ['skipped_needs_review', 'proposed'].includes(s.status));
-  if (!pending.length) return;
+  if (!pending.length) { review.textContent = 'No cleaning steps need approval.'; review.className = 'empty success'; return; }
   const heading = document.createElement('p'); heading.textContent = `${pending.length} cleaning step(s) need review.`; review.append(heading);
   for (const step of pending) {
     const row = document.createElement('div'); row.className = 'turn';
@@ -68,29 +74,50 @@ function renderReview(plan) {
   }
 }
 async function upload() {
+  const files = document.getElementById('files').files;
+  if (!files.length) { document.getElementById('run').textContent = 'Choose one or more CSV files first.'; return; }
+  setBusy('uploadButton', true, 'Uploading…');
   const fd = new FormData();
-  for (const f of document.getElementById('files').files) fd.append('files', f);
-  const r = await (await fetch('/api/runs', { method: 'POST', headers: h(), body: fd })).json();
-  if (r.error) { document.getElementById('run').textContent = r.error.message; return; }
+  for (const f of files) fd.append('files', f);
+  let r;
+  try { r = await (await fetch('/api/runs', { method: 'POST', headers: h(), body: fd })).json(); }
+  catch (e) { document.getElementById('run').textContent = 'Upload failed. Check that the server is running.'; setBusy('uploadButton', false); return; }
+  if (r.error) { document.getElementById('run').textContent = errorText(r); setBusy('uploadButton', false); return; }
   runId = r.run_id;
   document.getElementById('run').innerHTML = `run <b>${r.run_id}</b> <span class="pill">${r.status}</span> ${(r.warnings || []).join(' · ')}`;
   for (const k of ['issues', 'plan', 'graph']) show(k, await (await fetch(`/api/runs/${runId}/${k}`, { headers: h() })).json());
   renderReview(JSON.parse(document.getElementById('plan').textContent));
   sessionId = (await (await fetch('/api/sessions', { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ run_id: runId }) })).json()).session_id;
+  document.getElementById('turns').textContent = 'Session ready. Ask a question.';
+  setBusy('uploadButton', false);
 }
 async function ask() {
   if (!sessionId) return alert('Create a run first');
   const q = document.getElementById('q').value; if (!q) return;
-  const r = await (await fetch(`/api/sessions/${sessionId}/chat`, { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })).json();
+  setBusy('askButton', true, 'Thinking…');
+  let r;
+  try { r = await (await fetch(`/api/sessions/${sessionId}/chat`, { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })).json(); }
+  catch (e) { r = { error: { message: 'Chat request failed. Check that the server is running.' } }; }
   const div = document.createElement('div'); div.className = 'turn';
-  const text = document.createElement('div'); text.textContent = `Q: ${q}\n\n${r.answer_text || r.error?.message}`;
+  const text = document.createElement('div'); text.textContent = `Q: ${q}\n\n${r.answer_text || errorText(r)}`;
   div.append(text);
+  if (r.clarification?.options?.length) {
+    const choices = document.createElement('div'); choices.className = 'clarification';
+    choices.textContent = r.clarification.question + ' ';
+    r.clarification.options.forEach(option => { const b = document.createElement('button'); b.className = 'secondary'; b.textContent = option; b.onclick = () => { document.getElementById('q').value = option; ask(); }; choices.append(b); });
+    div.append(choices);
+  }
   const trace = r.trace_id ? await (await fetch(`/api/traces/${r.trace_id}`, { headers: h() })).json() : [];
   for (const [label, v] of [['Evidence', r.evidence], ['Plan', r.plan], ['Planner-loop trace', trace]]) {
     if (!v) continue; const d = document.createElement('details'); const s = document.createElement('summary'); s.textContent = label;
     const p = document.createElement('pre'); p.textContent = JSON.stringify(v, null, 2); d.append(s, p); div.append(d);
   }
-  document.getElementById('turns').prepend(div); document.getElementById('q').value = '';
+  const turns = document.getElementById('turns'); if (turns.classList.contains('empty')) turns.replaceChildren(); turns.prepend(div); document.getElementById('q').value = ''; setBusy('askButton', false);
+}
+async function resetSession() {
+  if (!sessionId) return;
+  await fetch(`/api/sessions/${sessionId}/reset`, { method: 'POST', headers: h() });
+  document.getElementById('turns').textContent = 'Session reset. Ask a new question.';
 }
 </script>
 </body>

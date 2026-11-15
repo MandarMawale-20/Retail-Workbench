@@ -8,7 +8,7 @@ A CSV pipeline that profiles and cleans retail data **without silent damage**, p
 ```bash
 uv sync                                   # or: pip install -r requirements.txt   (Python >= 3.12)
 cp .env.example .env                      # add a provider key only for live model calls
-uv run pytest -q                          # 68 tests incl. pandas-oracle, hypothesis idempotency, injection suite (fails if ASR > 0)
+uv run pytest -q                          # full regression suite, including oracle, idempotency and injection coverage
 uv run python scripts/make_sample_data.py # seeded sample data with planted traps -> sample_data/
 uv run uvicorn app.main:app --reload      # UI at http://localhost:8000, Swagger at /docs
 
@@ -70,7 +70,8 @@ Ambiguous `DD/MM` vs `MM/DD` is **never guessed**: the step is `skipped_needs_re
 Duplicate ids are flagged, never deleted; duplicate keys on a dimension make the relationship `unsafe` and joins are refused (fan-out blocked by construction).
 
 ## Results (this repo, sample data)
-Per-path chat metrics from `results_agnes.json` and `results_replay_agnes.json` (`summary.by_path`).
+Per-path chat metrics from evaluator output (`summary.by_path`). Offline replay is the
+submission baseline; Agnes is optional for live provider experiments.
 
 | metric | Agnes live | fallback |
 |---|---|---|
@@ -81,10 +82,10 @@ Per-path chat metrics from `results_agnes.json` and `results_replay_agnes.json` 
 | grounding_rate | 1.0 | 1.0 |
 | clarification precision / recall | 0.2 / 1.0 | 1.0 / 1.0 |
 | correct_refusal_rate | 1.0 | 1.0 |
-| narrator_acceptance_rate | 0.0 (0/1; provider failure) | template fallback |
+| narrator_acceptance_rate | live smoke: 1.0 (1/1) | template fallback |
 | llm_calls / tokens per question | 1.375 / 3,226.2 | 0.2 / 0 |
 
-Evaluator: 12 cases -> 10 ok and 2 intentionally bad (missing file, malformed case) reported as expected `error` cases without aborting. The replay has zero cassette misses. The Agnes narrator sample was unavailable because the provider returned a failure; template fallback therefore remains authoritative.
+Evaluator: 12 cases -> 10 ok and 2 intentionally bad (missing file, malformed case) reported as expected `error` cases without aborting. The replay has zero cassette misses. A live Agnes user-flow smoke test produced an accepted narrator response; template fallback remains authoritative whenever verification or provider calls fail.
 
 ## Cassettes: what is and isn't real
 Real Agnes recordings are retained in `evaluation_cases/cassettes/agnes`. The root
@@ -94,8 +95,8 @@ network-free. Provider failures are recorded as deterministic simulated
 timeout/rate-limit entries.
 
 Provider keys remain only in the ignored local `.env`. The local configuration uses
-Agnes `agnes-3.0-flash` with the 40 RPM client limiter. A live Agnes completion was
-verified and replayed locally with zero cassette misses. Provider keys remain only in the ignored local `.env`.
+Agnes `agnes-3.0-flash` with the 40 RPM client limiter. Live Agnes calls receive
+the bounded schema/statistics context described above; offline replay requires no key.
 
 ## Evaluator case format
 ```json
