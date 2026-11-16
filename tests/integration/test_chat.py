@@ -35,8 +35,14 @@ def test_multi_turn_filter_then_followup_matches_oracle(session, oracle):
     rr = ask(svc, OWNER, sid, "among those, which category has the highest return rate?")
     top = oracle.return_rate_by_category("West")
     assert rr.status == "ok" and rr.plan.filters == west.plan.filters and rr.evidence.result_row_count == 1
+    assert [m.metric_id for m in rr.plan.metrics] == ["return_rate"]
+    assert rr.plan.group_by == ["products.category"]
+    # The follow-up keeps the West filter and carries the join/evidence chain the answer depends on.
+    assert any(f.get("value") == "West" for f in rr.evidence.filters)
+    assert rr.evidence.relationships and rr.evidence.dataset_stage == "clean"
     assert fact(rr, top.index[0], "return_rate") == pytest.approx(top.iloc[0], rel=1e-6)
     stock = ask(svc, OWNER, sid, "among those, which is lowest on stock?")
+    assert stock.status == "ok" and stock.plan.filters == west.plan.filters
     assert fact(stock, oracle.stock_by_category("West").index[0], "inventory_on_hand") == oracle.stock_by_category("West").iloc[0]
 
 
@@ -192,6 +198,17 @@ def test_llm_plan_with_hallucinated_column_is_refused_after_one_repair(session, 
     assert out.result.status == "refused" and out.stats.repaired and out.result.evidence is None
 
 
+def test_tool_evidence_after_parse_repair_prefers_valid_fallback(session, rel_ids, oracle):
+    """Once the single repair is spent on parse errors, a plan lacking tool evidence falls back instead of refusing."""
+    svc, sid = session
+    out = ask_with_stats(svc, OWNER, sid, "Top 5 categories by revenue",
+                         provider=llm(["{not valid json", plan_json(rel_ids)]), use_narrator=False)
+    assert out.result.status == "ok" and out.stats.fallback_used and out.stats.planner_source == "fallback"
+    assert any(e["component"] == "planner_override" and e["original"] == "tool_evidence_missing" for e in out.trace)
+    top = oracle.revenue_by_category()
+    assert fact(out.result, top.index[0], "gross_sales_revenue") == pytest.approx(top.iloc[0], rel=1e-6)
+
+
 def test_narrator_accepted_and_rejected_paths(session, rel_ids):
     svc, sid = session
     def segs(*s):
@@ -221,12 +238,12 @@ def test_context_budget_trims_then_refuses(session):
     state = ConversationState(session_id=sid, owner_id=OWNER)
     full = build_schema_context("revenue by category", catalog, state, max_tokens=6000)
     assert not full.trim_log and len(full.columns) <= 40
-    trimmed = build_schema_context("revenue by category", catalog, state, max_tokens=2200)
+    trimmed = build_schema_context("revenue by category", catalog, state, max_tokens=2300)
     assert trimmed.trim_log[0] == "dropped lowest-scoring column" and len(trimmed.columns) < len(full.columns)
-    tighter = build_schema_context("revenue by category", catalog, state, max_tokens=1700)
+    tighter = build_schema_context("revenue by category", catalog, state, max_tokens=1900)
     assert tighter.trim_log == ["dropped lowest-scoring column", "list_distinct limit 50->20", "dropped metric descriptions"]
     with pytest.raises(AppError) as exc:
-        build_schema_context("revenue by category", catalog, state, max_tokens=1600)
+        build_schema_context("revenue by category", catalog, state, max_tokens=1800)
     assert exc.value.code == "UNSUPPORTED_QUERY"
     _ = (Settings, Path)
 
@@ -240,7 +257,7 @@ AGNES_REVENUE_CLARIFY = json.dumps({
 
 
 def test_revenue_clarification_is_overridden_by_documented_default(session, oracle):
-    """Real Agnes over-clarified gross-vs-net; the documented default must win without losing the turn."""
+    """A live model over-clarified gross-vs-net; the documented default must win without losing the turn."""
     svc, sid = session
     out = ask_with_stats(svc, OWNER, sid, "Top 5 categories by revenue",
                          provider=llm([AGNES_REVENUE_CLARIFY]), use_narrator=False)

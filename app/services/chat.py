@@ -152,7 +152,7 @@ def _fill_provider_stats(stats: QuestionStats, provider, before: int) -> None:
     stats.cassette_misses = sum(c.cassette_miss for c in calls)
     sources = [c.source for c in calls if c.ok and c.source]
     stats.path = sources[0] if sources else "fallback"
-    stats.path = {"nim_live": "nim_live", "replay": "replay", "mock": "mock", "cache": "nim_live"}.get(stats.path, stats.path)
+    stats.path = {"openrouter_live": "openrouter_live", "replay": "replay", "mock": "mock", "cache": "openrouter_live"}.get(stats.path, stats.path)
 
 
 class _Turn:
@@ -218,6 +218,20 @@ class _Turn:
             elif repaired.kind in ("clarify", "unanswerable"):
                 return (self._clarify({"kind": "planner", "question": repaired.question, "options": repaired.options}, question)
                         if repaired.kind == "clarify" else self._unsupported(repaired.reason or "", repaired.missing))
+        if not validation.valid and planner and validation.errors and \
+                all(e.code == "TOOL_EVIDENCE_MISSING" for e in validation.errors):
+            # The model produced a structurally valid plan but spent its single repair on a parse error, so code
+            # cannot inject the missing evidence. The rule planner executes those tools itself and is validated the
+            # same way, so prefer it; semantic failures (unknown column, unsafe join, PII) still refuse as documented.
+            fallback = FallbackPlanner(self.catalog, tools, self.state).plan(question)
+            if fallback.kind in ("plan", "delta"):
+                alt = self._to_plan(fallback)
+                alt_validation = self._validate(alt)
+                if alt_validation.valid:
+                    self.stats.fallback_used = True
+                    self.stats.planner_source = "fallback"
+                    self.tracer.event("planner_override", fallback.kind, original="tool_evidence_missing")
+                    return self._execute(question, alt, alt_validation)
         if not validation.valid:
             return self._from_validation(plan, validation, question)
         return self._execute(question, plan, validation)

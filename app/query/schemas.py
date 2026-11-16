@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 Scalar = str | int | float | bool
 ALLOWED_TOOLS = ("get_schema", "list_distinct", "preview_join", "get_metric_definition")
@@ -59,6 +59,12 @@ class QueryPlan(BaseModel, extra="forbid"):
     limit: int = Field(default=100, ge=1, le=1000)
     select_columns: list[str] = Field(default_factory=list)
     dataset_stage: Literal["clean", "raw"] = "clean"
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def _non_positive_limit_means_default(cls, value: Any) -> Any:
+        """Models emit null/0 for "no top-N"; a bounded default is safer than burning the single repair."""
+        return 100 if value is None or value == 0 else value
 
 
 class PlanDelta(BaseModel, extra="forbid"):

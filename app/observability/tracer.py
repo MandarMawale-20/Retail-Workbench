@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
-_SECRET = re.compile(r"nvapi-[A-Za-z0-9_\-]{8,}|Bearer\s+[A-Za-z0-9._\-]{12,}")
+_SECRET = re.compile(r"sk-or-v1-[A-Za-z0-9_\-]{8,}|Bearer\s+[A-Za-z0-9._\-]{12,}")
 
 
 def redact(value: Any) -> Any:

@@ -3,7 +3,7 @@
 It answers the planner protocol by running the deterministic fallback planner and rendering its decisions as the JSON
 protocol (tool_call -> final_plan/final_delta/clarify/unanswerable). The real planner loop, validator, repair and
 claim verifier therefore run on the replayed path, but the responses are NOT produced by a real model.
-Re-record with `--provider nim --record-cassettes` to replace them with genuine NVIDIA NIM output.
+Re-record with `--provider openrouter --record-cassettes` to replace them with live OpenRouter output.
 """
 from __future__ import annotations
 

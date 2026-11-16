@@ -14,7 +14,7 @@ from app.agents.prompts import PROMPT_VERSION
 from app.errors import AppError
 from app.ingestion.loader import InputFile, validate_file
 from app.llm.base import MeteredProvider
-from app.llm.nim_provider import AgnesProvider, CachingProvider, NimProvider
+from app.llm.openrouter_provider import CachingProvider, OpenRouterProvider
 from app.schemas import PipelineOptions
 from app.services.chat import ask, create_session, reset_session
 from app.services.context import Services
@@ -59,10 +59,8 @@ def _provider(request: Request) -> MeteredProvider | None:
         return state.provider
     state.provider_ready = True
     state.provider = None
-    if settings.llm_provider == "nim" and settings.has_nim_key:
-        state.provider = MeteredProvider(CachingProvider(NimProvider(settings), state.svc.repo, PROMPT_VERSION, settings.nim_model))
-    elif settings.llm_provider == "agnes" and settings.has_agnes_key:
-        state.provider = MeteredProvider(CachingProvider(AgnesProvider(settings), state.svc.repo, PROMPT_VERSION, settings.agnes_model))
+    if settings.llm_provider == "openrouter" and settings.has_openrouter_key:
+        state.provider = MeteredProvider(CachingProvider(OpenRouterProvider(settings), state.svc.repo, PROMPT_VERSION, settings.openrouter_model))
     return state.provider
 
 

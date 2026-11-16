@@ -1,6 +1,6 @@
 # Remaining Work — Retail Workbench
 
-Status: full test suite green, `ruff`/`mypy` clean, keyless replay evaluator works with zero cassette misses (either configured model key), injection suite ASR 0. The live-model over-clarification found in the Agnes run is fixed by the documented-default guard and `prompts-2026-11-v3`; a fresh live golden run is still outstanding because no key is available here.
+Status: full test suite green, `ruff`/`mypy` clean, keyless replay evaluator works with zero cassette misses, injection suite ASR 0, and a live smoke run completed 10 authenticated chat requests with HTTP 200 responses. A full live golden evaluation and failure-mode matrix remain outstanding.
 This document lists everything **not yet implemented or not yet verified**, ordered by priority, with effort and a testable "done when".
 Effort is in hours for one developer. IDs (FR-xx / AC-xx) refer to `docs/PRD.md`.
 
@@ -10,8 +10,8 @@ Effort is in hours for one developer. IDs (FR-xx / AC-xx) refer to `docs/PRD.md`
 
 | # | Item | Why it matters | Done when | Effort |
 |---|---|---|---|---|
-| 1 | **Record Agnes AI cassettes** | **Done.** Real Agnes recordings are retained under `evaluation_cases/cassettes/agnes`; deterministic dual-model replay cassettes remain the offline golden set. | Record provider responses with `--provider agnes --record-cassettes`, replay with zero misses, and keep the key only in ignored local configuration. | 1.5 |
-| 2 | **Validate the Agnes provider live** | **Done.** `/v1/models` and a live completion succeeded; fallback behavior remains covered offline. | Confirm `/v1/models`, run a golden chat, verify invalid-key and timeout fallback behavior, and document the result. | 1 |
+| 1 | **Record OpenRouter AI cassettes** | **Not verified.** A legacy recording set is retained under `evaluation_cases/cassettes/openrouter`; deterministic replay cassettes remain the offline golden set. | Record provider responses with `--provider openrouter --record-cassettes`, replay with zero misses, and keep the key only in ignored local configuration. | 1.5 |
+| 2 | **Validate the OpenRouter provider live** | **Smoke verified.** The pipeline validated and 10 authenticated chat requests returned HTTP 200. | Confirm `/v1/models`, run a golden chat, verify invalid-key and timeout fallback behavior, and document the result. | 1 |
 | 3 | **Git history** | The assessment checks commit hygiene; there are no commits yet. | Small `feat/test/docs` commits; `.env` never committed; `git log` tells the build story. | 0.5 |
 | 4 | **Lockfile** | Clean-clone requirement uses `uv sync`; only `requirements.txt` exists. | `uv lock` run and `uv.lock` committed; `uv sync && uv run pytest` passes in a fresh clone. | 0.25 |
 | 5 | **Walkthrough script / recording** | AC-15 lists a walkthrough; the PRD §10 demo script is not rehearsed or delivered. | 3–5 min recording or written script covering all 8 demo steps, done after a fresh-clone dry run. | 1.5 |
@@ -45,7 +45,7 @@ Effort is in hours for one developer. IDs (FR-xx / AC-xx) refer to `docs/PRD.md`
 | 19 | **API hardening** | **In progress.** Optional Bearer token-to-owner mapping and per-owner RPM limiting are implemented; streaming upload enforcement and retry policy remain. | 3 |
 | 20 | **Static typing and CI** | **Done.** CI runs Ruff, full-app mypy, pytest, and keyless evaluator replay; mypy passes across 84 source files. | 1.5 |
 | 21 | **Packaging** | **Done.** Dockerfile and Compose configuration provide an 8000 port and persistent `artifacts/` volume. | 1 |
-| 22 | **Narrator quality on a real model** | **Live smoke verified.** A complete Agnes-backed user flow produced an accepted narrator response (`answer_source=narrator`); template fallback remains authoritative on provider or verifier failure. Broader acceptance measurement remains future work. | 1.5 |
+| 22 | **Narrator quality on a real model** | **Live smoke verified.** A complete OpenRouter-backed user flow produced an accepted narrator response (`answer_source=narrator`); template fallback remains authoritative on provider or verifier failure. Broader acceptance measurement remains future work. | 1.5 |
 | 23 | **Session reset endpoint** | **Done.** `POST /api/sessions/{id}/reset` clears conversation state and turns while retaining the run scope. | 0.5 |
 
 ---
@@ -61,7 +61,7 @@ Effort is in hours for one developer. IDs (FR-xx / AC-xx) refer to `docs/PRD.md`
 
 ## Suggested order of work
 
-1. P0 items 1, 2 — record and validate Agnes cassettes.
+1. P0 items 1, 2 — record and validate OpenRouter cassettes.
 2. P0 items 3, 4, 5 — repository hygiene, lockfile, and walkthrough.
 3. P2 items 14–19 — generality, scale, dates, query policy, and API security.
 4. Finish P2 item 20 — static typing and CI validation.

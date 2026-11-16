@@ -21,14 +21,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     llm_provider: str = "none"
-    nvidia_api_key: str = ""
-    nim_base_url: str = "https://integrate.api.nvidia.com/v1"
-    nim_model: str = "meta/llama-3.3-70b-instruct"
-    agnes_api_key: str = ""
-    agnes_base_url: str = "https://apihub.agnes-ai.com/v1"
-    agnes_model: str = "agnes-3.0-flash"
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "particle-ai/particle-1:free"
     llm_timeout_s: float = 30
-    llm_max_rpm: int = 30
+    llm_max_rpm: int = 20
     llm_max_retries: int = 2
     llm_breaker_failures: int = 3
     llm_breaker_cooldown_s: float = 60
@@ -49,13 +46,8 @@ class Settings(BaseSettings):
     duckdb_threads: int = Field(default=2, ge=1)
 
     @property
-    def has_nim_key(self) -> bool:
-        key = self.nvidia_api_key.strip()
-        return bool(key) and "REPLACE_ME" not in key
-
-    @property
-    def has_agnes_key(self) -> bool:
-        key = self.agnes_api_key.strip()
+    def has_openrouter_key(self) -> bool:
+        key = self.openrouter_api_key.strip()
         return bool(key) and "REPLACE_ME" not in key
 
 

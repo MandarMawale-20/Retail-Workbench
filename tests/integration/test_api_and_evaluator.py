@@ -60,7 +60,7 @@ def test_async_run_and_job_status(client, data_dir):
 def run_eval(tmp_path, name, *extra):
     out = tmp_path / name
     env = dict(os.environ)
-    env.update({"NVIDIA_API_KEY": "", "HOME": str(tmp_path)})
+    env.update({"OPENROUTER_API_KEY": "", "HOME": str(tmp_path)})
     proc = subprocess.run([sys.executable, "-m", "app.evaluate", "--input", "evaluation_cases/cases.json", "--output", str(out / "r.json"),
                            "--artifacts-dir", str(out / "art"), *extra], cwd=ROOT, capture_output=True, text=True,
                           env=env)

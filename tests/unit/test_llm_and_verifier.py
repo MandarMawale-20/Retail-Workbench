@@ -9,7 +9,7 @@ from app.errors import AppError
 from app.evidence.claim_verifier import verify_narration
 from app.llm.base import CircuitBreaker, TokenBucket
 from app.llm.cassette_provider import CassetteProvider
-from app.llm.nim_provider import NimProvider
+from app.llm.openrouter_provider import OpenRouterProvider
 from app.query.schemas import Fact, Filter, MetricRef, NarratorOutput, PlanDelta, QueryPlan
 
 
@@ -36,7 +36,7 @@ class FakeClient:
 
 def provider(script, **kw):
     sleeps = []
-    p = NimProvider(Settings(nvidia_api_key="k", llm_max_retries=2), FakeClient(script), sleep=sleeps.append, **kw)
+    p = OpenRouterProvider(Settings(openrouter_api_key="k", llm_max_retries=2), FakeClient(script), sleep=sleeps.append, **kw)
     return p, sleeps
 
 
@@ -64,7 +64,7 @@ def test_auth_error_is_not_retried():
     p, sleeps = provider([Err(401)])
     with pytest.raises(AppError) as exc:
         call(p)
-    assert not exc.value.retryable and not sleeps and "NVIDIA_API_KEY" in exc.value.message
+    assert not exc.value.retryable and not sleeps and "OPENROUTER_API_KEY" in exc.value.message
 
 
 def test_rate_limiter_waits_when_empty():
@@ -104,9 +104,9 @@ def test_cassette_replay_accepts_alias_model_key(tmp_path):
     path = tmp_path / "c.jsonl"
     inner, _ = provider(['{"ok": true}'])
     msgs = [{"role": "user", "content": "q"}]
-    CassetteProvider(path, mode="record", prompt_version="v1", model="agnes-x", inner=inner).complete_json(
+    CassetteProvider(path, mode="record", prompt_version="v1", model="openrouter-x", inner=inner).complete_json(
         kind="planner", messages=msgs, max_tokens=5, trace_id="t")
-    rep = CassetteProvider(path, mode="replay", prompt_version="v1", model="nim-y", model_aliases=["agnes-x"])
+    rep = CassetteProvider(path, mode="replay", prompt_version="v1", model="openrouter-y", model_aliases=["openrouter-x"])
     assert rep.complete_json(kind="planner", messages=msgs, max_tokens=5, trace_id="t").text == '{"ok": true}'
     assert rep.hits == 1 and rep.misses == 0
 

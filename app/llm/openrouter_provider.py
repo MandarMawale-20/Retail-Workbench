@@ -1,4 +1,4 @@
-"""NVIDIA NIM provider (OpenAI-compatible) with own limiter, backoff, circuit breaker and cache layer."""
+"""OpenRouter provider (OpenAI-compatible) with limiter, backoff, breaker, and cache."""
 from __future__ import annotations
 
 import random
@@ -39,27 +39,28 @@ def classify(exc: Exception) -> _Retryable | AppError:
     if isinstance(status, int) and status >= 500:
         return _Retryable(AppError("LLM_TIMEOUT", f"LLM server error {status}", retryable=True, stage="llm"))
     if status in (401, 403):
-        return AppError("INTERNAL_ERROR", "NIM authentication failed: check NVIDIA_API_KEY", stage="llm")
+        return AppError("INTERNAL_ERROR", "OpenRouter authentication failed: check OPENROUTER_API_KEY", stage="llm")
     if status == 404:
-        return AppError("INTERNAL_ERROR", "NIM model or endpoint not found: check NIM_BASE_URL (/v1) and NIM_MODEL", stage="llm")
+        return AppError("INTERNAL_ERROR", "OpenRouter model or endpoint not found: check OPENROUTER_BASE_URL (/api/v1) and OPENROUTER_MODEL", stage="llm")
     if "Connection" in name:
         return _Retryable(AppError("LLM_TIMEOUT", "LLM connection failed", retryable=True, stage="llm"))
     return AppError("INTERNAL_ERROR", f"LLM call failed: {name}", stage="llm")
 
 
-class NimProvider:
-    name = "nim"
+class OpenRouterProvider:
+    name = "openrouter"
 
     def __init__(self, settings: Settings, client: Any | None = None, *, limiter: TokenBucket | None = None,
                  breaker: CircuitBreaker | None = None, sleep: Callable[[float], None] = time.sleep,
                  base_url: str | None = None, api_key: str | None = None, model: str | None = None,
-                 provider_name: str = "nim") -> None:
+                 provider_name: str = "openrouter") -> None:
         self.settings = settings
-        self.model = model or settings.nim_model
+        self.model = model or settings.openrouter_model
         self.name = provider_name
         if client is None:
             from openai import OpenAI
-            client = OpenAI(base_url=base_url or settings.nim_base_url, api_key=api_key or settings.nvidia_api_key,
+            client = OpenAI(base_url=base_url or settings.openrouter_base_url,
+                            api_key=api_key or settings.openrouter_api_key,
                             timeout=settings.llm_timeout_s, max_retries=0)
         self.client = client
         self.limiter = limiter or TokenBucket(settings.llm_max_rpm)
@@ -97,14 +98,6 @@ class NimProvider:
         self.breaker.record_failure()
         assert last is not None
         raise last
-
-
-class AgnesProvider(NimProvider):
-    """Agnes AI's OpenAI-compatible chat-completions provider."""
-
-    def __init__(self, settings: Settings, client: Any | None = None, **kwargs: Any) -> None:
-        super().__init__(settings, client, base_url=settings.agnes_base_url, api_key=settings.agnes_api_key,
-                         model=settings.agnes_model, provider_name="agnes", **kwargs)
 
 
 class CachingProvider:

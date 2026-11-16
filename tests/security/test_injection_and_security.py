@@ -41,9 +41,9 @@ def test_path_containment(tmp_path):
 
 
 def test_secrets_are_redacted_from_traces():
-    assert "nvapi-" not in str(redact({"k": "Bearer abcdefghijklmnop and nvapi-ABCDEFGH12345678"}))
+    assert "sk-or-v1-" not in str(redact({"k": "Bearer abcdefghijklmnop and sk-or-v1-ABCDEFGH12345678"}))
 
 
 def test_no_secret_defaults_and_env_example_has_placeholders_only():
     text = (Path(__file__).resolve().parents[2] / ".env.example").read_text()
-    assert "nvapi-REPLACE_ME" in text and Settings().nvidia_api_key == ""
+    assert "sk-or-v1-REPLACE_ME" in text and Settings().openrouter_api_key == ""

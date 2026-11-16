@@ -27,8 +27,7 @@ class CassetteProvider:
                  model_aliases: list[str] | None = None) -> None:
         assert mode in ("replay", "record")
         self.path, self.mode, self.version, self.model, self.inner = Path(path), mode, prompt_version, model, inner
-        # A cassette may have been recorded by the other OpenAI-compatible provider (NIM vs Agnes): replay accepts
-        # either model key so a clean clone replays regardless of which provider `.env` names. Recording stays strict.
+        # Replay accepts configured model aliases so deterministic fixtures remain usable after model changes.
         self.models = [model, *(m for m in model_aliases or [] if m != model)]
         self.name = mode
         self.hits = self.misses = 0
@@ -94,6 +93,6 @@ class AutoProvider:
                     raise
                 self.cassette_misses += 1
         if self.live is None:
-            raise AppError("LLM_TIMEOUT", "no LLM available (cassette miss and no NVIDIA_API_KEY)", stage="llm",
+            raise AppError("LLM_TIMEOUT", "no LLM available (cassette miss and no OPENROUTER_API_KEY)", stage="llm",
                            details={"cassette_miss": self.replay is not None})
         return self.live.complete_json(kind=kind, messages=messages, max_tokens=max_tokens, trace_id=trace_id)

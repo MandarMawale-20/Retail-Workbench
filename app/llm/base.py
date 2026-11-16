@@ -19,7 +19,7 @@ class LLMResponse(BaseModel):
     tokens_out: int | None = None
     latency_ms: int = 0
     cached: bool = False
-    source: str = ""          # replay | nim_live | mock | cache
+    source: str = ""          # replay | openrouter_live | mock | cache
 
 
 class LLMProvider(Protocol):

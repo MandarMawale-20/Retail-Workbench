@@ -37,7 +37,7 @@ from app.services.context import Services
 from app.services.pipeline import run_pipeline
 from app.storage.artifacts import ArtifactStore, safe_segment
 
-PROVIDERS = ("auto", "replay", "mock", "fallback", "nim", "agnes", "synthetic")
+PROVIDERS = ("auto", "replay", "mock", "fallback", "openrouter", "synthetic")
 
 
 def _options(raw: dict[str, Any], settings: Settings) -> PipelineOptions:
@@ -100,7 +100,7 @@ def _make_provider(case: Case, args: argparse.Namespace, settings: Settings, svc
     if mode == "synthetic":
         if not args.record_cassettes:
             raise AppError("CASE_INPUT_INVALID", "--provider synthetic requires --record-cassettes", stage="evaluate")
-        model = settings.agnes_model if settings.llm_provider.lower() == "agnes" else settings.nim_model
+        model = settings.openrouter_model
         inner = CassetteProvider(Path(args.record_cassettes) / f"{case.case_id}.jsonl", mode="record", prompt_version=PROMPT_VERSION,
                                  model=model, inner=SyntheticProvider(svc, case.owner_id, ref))
         return MeteredProvider(inner)
@@ -192,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--artifacts-dir", required=True)
     parser.add_argument("--provider", choices=PROVIDERS, default=None, help="default: EVAL_PROVIDER (auto)")
     parser.add_argument("--cassettes", default=None, help="directory with {case_id}.jsonl cassettes")
-    parser.add_argument("--record-cassettes", default=None, help="record LLM responses here (with --provider nim|agnes|synthetic)")
+    parser.add_argument("--record-cassettes", default=None, help="record LLM responses here (with --provider openrouter|synthetic)")
     parser.add_argument("--skip-injection", action="store_true")
     args = parser.parse_args(argv)
     settings = get_settings()

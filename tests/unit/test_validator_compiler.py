@@ -34,6 +34,15 @@ def test_plan_schema_rejects_unknown_keys_and_limits():
         QueryPlan(intent="aggregate", owner_id="x")
 
 
+def test_plan_schema_defaults_null_or_zero_limit_and_rejects_grouped_stage():
+    """Live models emit limit null/0 and a non-existent "grouped" stage; tolerate the former, reject the latter."""
+    assert QueryPlan(intent="aggregate", limit=None).limit == 100  # type: ignore[arg-type]
+    assert QueryPlan(intent="aggregate", limit=0).limit == 100
+    assert QueryPlan(intent="aggregate", limit=5).limit == 5
+    with pytest.raises(ValidationError):
+        QueryPlan(intent="aggregate", dataset_stage="grouped")  # type: ignore[arg-type]
+
+
 def test_valid_plan_needs_tool_evidence(env, rel_ids):
     svc, catalog, ctx, values = env
     plan = revenue(rel_ids)
