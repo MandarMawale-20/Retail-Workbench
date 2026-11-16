@@ -23,9 +23,13 @@ def request_key(kind: str, prompt_version: str, model: str, messages: list[dict]
 class CassetteProvider:
     """Replay (no network) or record (wraps a live provider) one case's `.jsonl` cassette."""
 
-    def __init__(self, path: Path, *, mode: str, prompt_version: str, model: str, inner: LLMProvider | None = None) -> None:
+    def __init__(self, path: Path, *, mode: str, prompt_version: str, model: str, inner: LLMProvider | None = None,
+                 model_aliases: list[str] | None = None) -> None:
         assert mode in ("replay", "record")
         self.path, self.mode, self.version, self.model, self.inner = Path(path), mode, prompt_version, model, inner
+        # A cassette may have been recorded by the other OpenAI-compatible provider (NIM vs Agnes): replay accepts
+        # either model key so a clean clone replays regardless of which provider `.env` names. Recording stays strict.
+        self.models = [model, *(m for m in model_aliases or [] if m != model)]
         self.name = mode
         self.hits = self.misses = 0
         self._queues: dict[str, list[dict]] = defaultdict(list)
@@ -40,9 +44,9 @@ class CassetteProvider:
             self.path.unlink(missing_ok=True)
 
     def complete_json(self, *, kind: Kind, messages: list[dict], max_tokens: int, trace_id: str) -> LLMResponse:
-        key = request_key(kind, self.version, self.model, messages)
         if self.mode == "record":
             assert self.inner is not None
+            key = request_key(kind, self.version, self.model, messages)
             try:
                 resp = self.inner.complete_json(kind=kind, messages=messages, max_tokens=max_tokens, trace_id=trace_id)
             except AppError as exc:
@@ -53,7 +57,7 @@ class CassetteProvider:
                           "tokens_in": resp.tokens_in, "tokens_out": resp.tokens_out, "latency_ms": resp.latency_ms,
                           "recorded_at": datetime.now(UTC).isoformat(timespec="seconds")})
             return resp
-        queue = self._queues.get(key)
+        queue = next((q for m in self.models if (q := self._queues.get(request_key(kind, self.version, m, messages)))), None)
         if not queue:
             self.misses += 1
             raise AppError("LLM_TIMEOUT", "no cassette entry for this request (stale or missing recording)",

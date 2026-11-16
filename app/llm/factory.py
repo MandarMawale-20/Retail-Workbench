@@ -35,7 +35,8 @@ def build_provider(mode: str, settings: Settings, repo: Repository, prompt_versi
     if mock_responses is not None or mode == "mock":
         inner = MockProvider(mock_responses or [])
     elif mode == "replay":
-        inner = CassetteProvider(cassette or Path("/nonexistent.jsonl"), mode="replay", prompt_version=prompt_version, model=model)
+        inner = CassetteProvider(cassette or Path("/nonexistent.jsonl"), mode="replay", prompt_version=prompt_version,
+                                 model=model, model_aliases=[settings.nim_model, settings.agnes_model])
     elif mode == "nim":
         inner = live()
         if inner is not None and record_dir:
@@ -47,7 +48,8 @@ def build_provider(mode: str, settings: Settings, repo: Repository, prompt_versi
             inner = CassetteProvider(Path(record_dir) / f"{case_id}.jsonl", mode="record", prompt_version=prompt_version,
                                      model=model, inner=inner)
     elif mode == "auto":
-        replay = CassetteProvider(cassette, mode="replay", prompt_version=prompt_version, model=model) \
+        replay = CassetteProvider(cassette, mode="replay", prompt_version=prompt_version, model=model,
+                                  model_aliases=[settings.nim_model, settings.agnes_model]) \
             if cassette and cassette.exists() else None
         live_provider = live()
         inner = AutoProvider(replay, live_provider) if (replay or live_provider) else None

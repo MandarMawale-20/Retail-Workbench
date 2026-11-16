@@ -199,6 +199,7 @@ Rules:
 - `key` covers the **full canonical request including fenced tool results**, so a changed prompt, schema or data invalidates the cassette instead of silently replaying stale output.
 - `recorded_at` and `latency_ms` are excluded from determinism diffs.
 - Replay never calls the network; a miss falls back and is reported (`cassette_miss`), so stale cassettes are visible.
+- Because the key includes the model name, replay accepts **either configured model key** (`NIM_MODEL` or `AGNES_MODEL`) for the same request. A cassette recorded by either OpenAI-compatible provider therefore replays on a clean clone with no `.env`; recording stays bound to the live model that produced it.
 - Failure cassettes are first-class: record (or hand-write) entries with invalid JSON, a plan missing tool evidence, and a malicious plan, to test repair and rejection on the real code path. Timeouts/429 are simulated by a `{"simulate": "timeout|rate_limited"}` entry.
 - Cassettes contain prompts' responses only, never API keys; request bodies are stored as hashes, not text, to avoid persisting data.
 

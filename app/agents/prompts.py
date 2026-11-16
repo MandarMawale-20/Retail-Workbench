@@ -5,7 +5,7 @@ import json
 
 from app.common import canonical_json, fence_data, sanitize_for_prompt
 
-PROMPT_VERSION = "prompts-2026-11-v2"
+PROMPT_VERSION = "prompts-2026-11-v3"
 
 PLANNER_SYSTEM = """You are the query planner of a retail analytics workbench. You PROPOSE a typed query plan; code validates and executes it.
 Output exactly ONE JSON object and nothing else. Types:
@@ -24,8 +24,11 @@ Rules:
 - Prefer registered metrics for retail terms (revenue, return rate, AOV). Include every relationship id needed to join the datasets involved.
 - Use `dataset_stage="raw"` only for single-table counts, distincts, filters, or grouping; use `grouped` for metrics that require joins.
 - For a dataset-only request such as "only stores in <value>", return a filter/list plan for that dataset after validating the value.
-- If a term is ambiguous between supported interpretations and no default exists, return clarify. If required data is missing, return unanswerable and list what is missing.
-- For follow-ups return a final_delta relative to the previous plan; do not restate unchanged parts."""
+- Metrics marked `is_default=true` in the context are the documented defaults. Use the default without asking. In particular, "revenue" or "sales" means `gross_sales_revenue` unless the user explicitly asks for net revenue, after returns, or a gross-vs-net comparison.
+- Only ask clarify when at least two supported interpretations remain after applying the documented defaults. Never ask the user to choose between a default and a non-default option.
+- For follow-ups return a final_delta relative to the previous plan; do not restate unchanged parts. If the previous plan exists and the question only adds/removes a filter or changes grouping/sorting/limit, always return final_delta instead of clarify.
+- For "how many <entity>" use a distinct count on that entity's id role (for orders prefer the `order_count` metric), not a plain row count.
+- If required data is missing, return unanswerable and list what is missing."""
 
 NARRATOR_SYSTEM = """You write a concise answer from verified facts. Output exactly ONE JSON object and nothing else:
 {"segments":[{"type":"text","text":"..."},{"type":"fact","fact_id":"f_..."}]}

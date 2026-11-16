@@ -221,11 +221,57 @@ def test_context_budget_trims_then_refuses(session):
     state = ConversationState(session_id=sid, owner_id=OWNER)
     full = build_schema_context("revenue by category", catalog, state, max_tokens=6000)
     assert not full.trim_log and len(full.columns) <= 40
-    trimmed = build_schema_context("revenue by category", catalog, state, max_tokens=1800)
+    trimmed = build_schema_context("revenue by category", catalog, state, max_tokens=2200)
     assert trimmed.trim_log[0] == "dropped lowest-scoring column" and len(trimmed.columns) < len(full.columns)
-    tighter = build_schema_context("revenue by category", catalog, state, max_tokens=1500)
+    tighter = build_schema_context("revenue by category", catalog, state, max_tokens=1700)
     assert tighter.trim_log == ["dropped lowest-scoring column", "list_distinct limit 50->20", "dropped metric descriptions"]
     with pytest.raises(AppError) as exc:
-        build_schema_context("revenue by category", catalog, state, max_tokens=1000)
+        build_schema_context("revenue by category", catalog, state, max_tokens=1600)
     assert exc.value.code == "UNSUPPORTED_QUERY"
     _ = (Settings, Path)
+
+
+# ------------------------------------------------ documented-default guard against over-conservative LLM abstention
+AGNES_REVENUE_CLARIFY = json.dumps({
+    "type": "clarify",
+    "question": "Which definition of revenue should I use for the ranking: gross sales revenue or net sales revenue?",
+    "options": ["gross_sales_revenue (default)", "net_sales_revenue"],
+})
+
+
+def test_revenue_clarification_is_overridden_by_documented_default(session, oracle):
+    """Real Agnes over-clarified gross-vs-net; the documented default must win without losing the turn."""
+    svc, sid = session
+    out = ask_with_stats(svc, OWNER, sid, "Top 5 categories by revenue",
+                         provider=llm([AGNES_REVENUE_CLARIFY]), use_narrator=False)
+    res = out.result
+    assert res.status == "ok" and res.plan is not None
+    assert [m.metric_id for m in res.plan.metrics] == ["gross_sales_revenue"]
+    assert res.evidence is not None and res.evidence.result_row_count == 5
+    assert out.stats.fallback_used and out.stats.planner_source == "fallback"
+    assert any(e["component"] == "planner_override" for e in out.trace)
+    top = oracle.revenue_by_category()
+    assert fact(res, top.index[0], "gross_sales_revenue") == pytest.approx(top.iloc[0], rel=1e-6)
+
+
+def test_followup_refusal_is_overridden_by_rule_delta(session):
+    """An LLM 'unanswerable' for a filter-only follow-up must become a delta against the previous plan."""
+    svc, sid = session
+    ask(svc, OWNER, sid, "Top 5 categories by revenue")
+    refusal = json.dumps({"type": "unanswerable", "reason": "the request is too vague", "missing": []})
+    out = ask_with_stats(svc, OWNER, sid, "only stores in the West region", provider=llm([refusal]), use_narrator=False)
+    assert out.result.status == "ok" and out.result.plan is not None
+    assert [f.value for f in out.result.plan.filters] == ["West"]
+    assert out.stats.fallback_used and any(e["component"] == "planner_override" for e in out.trace)
+
+
+def test_genuine_ambiguity_and_missing_data_keep_their_abstention(session):
+    svc, sid = session
+    ambiguous = json.dumps({"type": "clarify", "question": "Rank by units sold or revenue?",
+                            "options": ["Units sold", "Gross sales revenue"]})
+    out = ask_with_stats(svc, OWNER, sid, "Which products performed best?", provider=llm([ambiguous]), use_narrator=False)
+    assert out.result.status == "clarification_required" and not out.stats.fallback_used
+    refusal = json.dumps({"type": "unanswerable", "reason": "no cost data", "missing": ["unit_cost"]})
+    out = ask_with_stats(svc, OWNER, sid, "What is our profit margin?", provider=llm([refusal]), use_narrator=False)
+    assert out.result.status == "unsupported" and out.result.error["details"]["missing_roles"] == ["unit_cost"]
+

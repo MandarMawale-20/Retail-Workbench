@@ -99,6 +99,18 @@ def test_cassette_roundtrip_and_stale_miss(tmp_path):
     assert "secret-question-text" not in path.read_text()                                                # request bodies are not stored
 
 
+def test_cassette_replay_accepts_alias_model_key(tmp_path):
+    """Clean clones replay the same cassette whichever OpenAI-compatible provider `.env` names."""
+    path = tmp_path / "c.jsonl"
+    inner, _ = provider(['{"ok": true}'])
+    msgs = [{"role": "user", "content": "q"}]
+    CassetteProvider(path, mode="record", prompt_version="v1", model="agnes-x", inner=inner).complete_json(
+        kind="planner", messages=msgs, max_tokens=5, trace_id="t")
+    rep = CassetteProvider(path, mode="replay", prompt_version="v1", model="nim-y", model_aliases=["agnes-x"])
+    assert rep.complete_json(kind="planner", messages=msgs, max_tokens=5, trace_id="t").text == '{"ok": true}'
+    assert rep.hits == 1 and rep.misses == 0
+
+
 def test_extract_first_json_handles_noise_and_braces_in_strings():
     assert extract_first_json('sure! {"a": "}{", "b": {"c": 1}} trailing {"x":2}') == {"a": "}{", "b": {"c": 1}}
     with pytest.raises(ValueError):

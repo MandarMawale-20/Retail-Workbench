@@ -51,6 +51,7 @@ as free for its Angel User Trial. Configure `LLM_PROVIDER=agnes` and keep
 `AGNES_API_KEY` only in the ignored local `.env`.
 Own token-bucket limiter (`LLM_MAX_RPM`), exponential backoff with jitter honouring `Retry-After` (<= 2 retries), circuit breaker, SQLite response cache,
 `<think>` stripping. 401/404 are non-retryable config errors. Chain: live provider -> (timeout / 429 / invalid JSON after one repair / breaker open) -> deterministic fallback -> clarify/unsupported.
+**Documented-default guard:** prompt rules alone do not enforce policy, so when the LLM returns `clarify` (or `unanswerable` on a follow-up) code runs the deterministic planner; a rule `plan`/`delta` wins, genuine ambiguity still clarifies, and the override is traced as `planner_override`. Live Agnes over-clarified "gross or net revenue?" for "Top 5 categories by revenue"; the documented gross default (`is_default: true`) now applies without asking.
 
 ## Data sent to the model
 Only: the question (<= 500 chars); a pruned schema context (<= 5 datasets, <= 40 columns: ids, types, roles, null%, distinct counts), relationship ids with cardinality,
@@ -85,14 +86,19 @@ submission baseline; Agnes is optional for live provider experiments.
 | narrator_acceptance_rate | live smoke: 1.0 (1/1) | template fallback |
 | llm_calls / tokens per question | 1.375 / 3,226.2 | 0.2 / 0 |
 
-Evaluator: 12 cases -> 10 ok and 2 intentionally bad (missing file, malformed case) reported as expected `error` cases without aborting. The replay has zero cassette misses. A live Agnes user-flow smoke test produced an accepted narrator response; template fallback remains authoritative whenever verification or provider calls fail.
+Evaluator: 12 cases -> 10 ok and 2 intentionally bad (missing file, malformed case) reported as expected `error` cases without aborting. The replay has zero cassette misses — including a clean clone whose `.env` names either provider, because replay accepts both configured model keys. A live Agnes user-flow smoke test produced an accepted narrator response; template fallback remains authoritative whenever verification or provider calls fail.
+
+The Agnes column is the pre-fix live run: the model asked gross-vs-net, then lost plan context. The documented-default guard and the `prompts-2026-11-v3` rules now make that path resolve to gross revenue and answer; the synthetic replay (which exercises the same planner/validator/claim-verifier pipeline) reports `exact_answer_accuracy 1.0`, `clarification_precision/recall 1.0/1.0`. Re-record the live column with `--provider agnes --record-cassettes` when a key is available.
 
 ## Cassettes: what is and isn't real
 Real Agnes recordings are retained in `evaluation_cases/cassettes/agnes`. The root
-`evaluation_cases/cassettes` directory is the deterministic offline golden set and
-contains entries for both configured model keys, so replay remains keyless and
-network-free. Provider failures are recorded as deterministic simulated
-timeout/rate-limit entries.
+`evaluation_cases/cassettes` directory is the deterministic offline golden set. Its
+entries were produced by the synthetic emulator (recorded under the configured Agnes
+model key); replay accepts either configured model key (`AGNES_MODEL` or `NIM_MODEL`),
+so replay stays keyless, network-free and zero-miss even on a clean clone with no
+`.env`. Provider failures are recorded as deterministic simulated timeout/rate-limit
+entries. The retained real Agnes recordings use prompt v1 and intentionally miss under
+the current prompt version rather than replaying stale answers.
 
 Provider keys remain only in the ignored local `.env`. The local configuration uses
 Agnes `agnes-3.0-flash` with the 40 RPM client limiter. Live Agnes calls receive
@@ -114,7 +120,6 @@ Typed QueryPlan instead of text-to-SQL (safer, less flexible: one time grain per
 (simple, fine for 100k rows) with DuckDB for storage/analytics. Multi-fact metrics use FULL OUTER JOIN of per-fact CTEs, so zero-return categories still appear.
 
 ## Known limitations
-No live-NIM run was possible while building (no key): the NIM provider is tested with a fake transport only. No date bucketing ("by month"); ambiguous dates require the review endpoint to re-run.
-Role inference is alias/type driven (unseen schemas degrade to clarify/unsupported). Advisor LLM, stock-risk score, Dockerfile and `mypy` pass are not built. `ruff` clean.
+Live NIM was never exercised (no key): that provider is tested with a fake transport only. The live Agnes numbers in the table were recorded before the documented-default guard (`prompts-2026-11-v3`); the stale `evaluation_cases/cassettes/agnes` recordings are retained as evidence of the over-clarification, not regenerated (no key in this environment). Live-provider quality therefore still needs a fresh golden run. Ambiguous dates require the review endpoint to re-run. Role inference is alias/type driven, so unseen schemas degrade to clarify/unsupported. `ruff` and `mypy` are clean.
 Contract extensions beyond DATA_CONTRACTS.md: issue type `non_iso_dates`; `MetricVariant.terms/expression`; `MetricBinding.term_datasets/term_columns/binding_uncertain`; `PlanDelta.relationship_ids`;
 `LLMResponse.source`; `owner_id` columns on `chat_turns`/`evidence`/`traces`; `ValidationIssue.details`.

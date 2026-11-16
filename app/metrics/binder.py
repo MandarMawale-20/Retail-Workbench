@@ -116,9 +116,12 @@ def try_bind(metric_id: str, index: RoleIndex) -> MetricBinding | None:
 
 
 def metric_definition_summary(metric: MetricDefinition, binding: MetricBinding | None) -> dict:
-    return {"metric_id": metric.metric_id, "name": metric.name, "description": metric.description, "unit": metric.unit,
-            "definition_version": metric.definition_version,
-            "variant": binding.variant_id if binding else None,
-            "formula": next((v.description for v in metric.variants if binding and v.variant_id == binding.variant_id),
-                            metric.variants[0].description),
-            "bound": binding is not None, "binding_uncertain": bool(binding and binding.binding_uncertain)}
+    summary = {"metric_id": metric.metric_id, "name": metric.name, "description": metric.description, "unit": metric.unit,
+               "definition_version": metric.definition_version,
+               "variant": binding.variant_id if binding else None,
+               "formula": next((v.description for v in metric.variants if binding and v.variant_id == binding.variant_id),
+                               metric.variants[0].description),
+               "bound": binding is not None, "binding_uncertain": bool(binding and binding.binding_uncertain)}
+    if metric.is_default:
+        summary["is_default"] = True
+    return summary

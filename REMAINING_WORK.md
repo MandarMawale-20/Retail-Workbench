@@ -1,6 +1,6 @@
 # Remaining Work — Retail Workbench
 
-Status: full test suite green, `ruff` clean, keyless replay evaluator works, injection suite ASR 0.
+Status: full test suite green, `ruff`/`mypy` clean, keyless replay evaluator works with zero cassette misses (either configured model key), injection suite ASR 0. The live-model over-clarification found in the Agnes run is fixed by the documented-default guard and `prompts-2026-11-v3`; a fresh live golden run is still outstanding because no key is available here.
 This document lists everything **not yet implemented or not yet verified**, ordered by priority, with effort and a testable "done when".
 Effort is in hours for one developer. IDs (FR-xx / AC-xx) refer to `docs/PRD.md`.
 

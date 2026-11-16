@@ -197,6 +197,7 @@ class _Turn:
             return self._clarify(clar, question)
         tools = PlannerTools(self.catalog, self.values, self.tool_log)
         outcome = self._plan(question, tools)
+        outcome = self._prefer_documented_default(question, outcome, tools)
         if outcome.kind == "clarify":
             return self._clarify({"kind": "planner", "question": outcome.question, "options": outcome.options}, question)
         if outcome.kind == "unanswerable":
@@ -243,6 +244,28 @@ class _Turn:
         self.tracer.event("planner", outcome.kind, source="fallback")
         self.stats.planner_source = "fallback"
         return outcome
+
+    def _prefer_documented_default(self, question: str, outcome: PlannerOutcome, tools: PlannerTools) -> PlannerOutcome:
+        """The rule planner encodes the documented-default policy; it wins over over-conservative LLM abstention.
+
+        Architecture rule: clarify only when two supported interpretations remain after applying defaults. An LLM
+        that asks "gross or net revenue?" despite the documented gross default (or that refuses a follow-up filter)
+        must not stall the conversation. Genuine ambiguity still survives because the fallback planner also clarifies.
+        """
+        if outcome.source != "llm" or outcome.kind not in ("clarify", "unanswerable"):
+            return outcome
+        fallback = FallbackPlanner(self.catalog, tools, self.state).plan(question)
+        # A clarify may be replaced by a plan or a follow-up delta. An "unanswerable" is only overridden for a
+        # follow-up delta: a standalone model refusal may reflect unsupported reasoning (e.g. forecasting) that
+        # the rule planner would otherwise answer too literally.
+        allowed = fallback.kind == "delta" or (outcome.kind == "clarify" and fallback.kind == "plan")
+        if not allowed or fallback.kind not in ("plan", "delta"):
+            return outcome
+        self.stats.fallback_used = True
+        self.stats.planner_source = "fallback"
+        self.tracer.event("planner_override", fallback.kind, original=outcome.kind,
+                          question=sanitize_for_prompt(question, 200))
+        return fallback
 
     def _absorb(self, before: PlannerOutcome, after: PlannerOutcome) -> None:
         self.stats.invalid_json = self.stats.invalid_json or after.invalid_json > 0

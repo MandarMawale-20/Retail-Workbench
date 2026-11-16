@@ -37,6 +37,7 @@ class MetricDefinition(BaseModel):
     null_policy: str = "NULL values are ignored by SUM; rows with NULL keys are kept in their own group"
     definition_version: str = DEFINITION_VERSION
     default_grain: str | None = None
+    is_default: bool = False
 
 
 def _variant(vid: str, terms: dict[str, TermSpec], expr: Expr, description: str, formula_id: str | None = None) -> MetricVariant:
@@ -62,7 +63,7 @@ def build_registry() -> dict[str, MetricDefinition]:
                                             "SUM(quantity)")]),
         MetricDefinition(metric_id="gross_sales_revenue", name="Gross sales revenue",
                          description="Sales value before returns (default revenue basis)", unit="currency",
-                         variants=_gross_variants(None, ("ref", "g"), "gross")),
+                         variants=_gross_variants(None, ("ref", "g"), "gross"), is_default=True),
         MetricDefinition(metric_id="net_sales_revenue", name="Net sales revenue",
                          description="Gross sales revenue minus returned amount", unit="currency",
                          variants=_gross_variants({"r": TermSpec(agg="sum", roles=["return_amount"])}, ("sub", "g", "r"), "net")),
