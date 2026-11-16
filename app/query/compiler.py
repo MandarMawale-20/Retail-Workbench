@@ -64,6 +64,10 @@ def filter_sql(catalog: Catalog, f: Filter, stage: str) -> tuple[str, list[Any]]
         return f"{col} IS NULL", []
     if f.op == "not_null":
         return f"{col} IS NOT NULL", []
+    if f.value is None:
+        # No filter value provided; return empty params so the operator
+        # effectively becomes a no-op (caller should handle this).
+        return "", []
     values = f.value if isinstance(f.value, list) else [f.value]
     if f.op == "contains":
         return f"CONTAINS(LOWER({col}), ?)", [str(values[0]).lower()]
